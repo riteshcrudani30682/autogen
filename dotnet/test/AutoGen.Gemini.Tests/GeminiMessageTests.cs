@@ -1,8 +1,7 @@
-﻿// Copyright (c) Microsoft Corporation. All rights reserved.
+// Copyright (c) Microsoft Corporation. All rights reserved.
 // GeminiMessageTests.cs
 
 using AutoGen.Core;
-using AutoGen.Gemini.Middleware;
 using AutoGen.Tests;
 using FluentAssertions;
 using Google.Cloud.AIPlatform.V1;
@@ -226,10 +225,10 @@ public class GeminiMessageTests
             })
             .Select(m => MessageEnvelope.Create(m));
 
-        IStreamingMessage? finalReply = null;
+        IMessage? finalReply = null;
         await foreach (var reply in agent.GenerateStreamingReplyAsync(messageChunks))
         {
-            reply.Should().BeAssignableTo<IStreamingMessage>();
+            reply.Should().BeAssignableTo<IMessage>();
             finalReply = reply;
         }
 

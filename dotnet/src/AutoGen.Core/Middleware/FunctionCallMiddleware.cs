@@ -1,12 +1,14 @@
-﻿// Copyright (c) Microsoft Corporation. All rights reserved.
+// Copyright (c) Microsoft Corporation. All rights reserved.
 // FunctionCallMiddleware.cs
 
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.AI;
 
 namespace AutoGen.Core;
 
@@ -43,6 +45,19 @@ public class FunctionCallMiddleware : IStreamingMiddleware
         this.functionMap = functionMap;
     }
 
+    /// <summary>
+    /// Create a new instance of <see cref="FunctionCallMiddleware"/> with a list of <see cref="AIFunction"/>.
+    /// </summary>
+    /// <param name="functions">function list</param>
+    /// <param name="name">optional middleware name. If not provided, the class name <see cref="FunctionCallMiddleware"/> will be used.</param>
+    public FunctionCallMiddleware(IEnumerable<AIFunction> functions, string? name = null)
+    {
+        this.Name = name ?? nameof(FunctionCallMiddleware);
+        this.functions = functions.Select(f => (FunctionContract)f.Metadata).ToArray();
+
+        this.functionMap = functions.Select(f => (f.Metadata.Name, this.AIToolInvokeWrapper(f.InvokeAsync))).ToDictionary(f => f.Name, f => f.Item2);
+    }
+
     public string? Name { get; }
 
     public async Task<IMessage> InvokeAsync(MiddlewareContext context, IAgent agent, CancellationToken cancellationToken = default)
@@ -70,7 +85,7 @@ public class FunctionCallMiddleware : IStreamingMiddleware
         return reply;
     }
 
-    public async IAsyncEnumerable<IStreamingMessage> InvokeAsync(
+    public async IAsyncEnumerable<IMessage> InvokeAsync(
         MiddlewareContext context,
         IStreamingAgent agent,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
@@ -86,16 +101,16 @@ public class FunctionCallMiddleware : IStreamingMiddleware
         var combinedFunctions = this.functions?.Concat(options.Functions ?? []) ?? options.Functions;
         options.Functions = combinedFunctions?.ToArray();
 
-        IStreamingMessage? initMessage = default;
+        IMessage? mergedFunctionCallMessage = default;
         await foreach (var message in agent.GenerateStreamingReplyAsync(context.Messages, options, cancellationToken))
         {
             if (message is ToolCallMessageUpdate toolCallMessageUpdate && this.functionMap != null)
             {
-                if (initMessage is null)
+                if (mergedFunctionCallMessage is null)
                 {
-                    initMessage = new ToolCallMessage(toolCallMessageUpdate);
+                    mergedFunctionCallMessage = new ToolCallMessage(toolCallMessageUpdate);
                 }
-                else if (initMessage is ToolCallMessage toolCall)
+                else if (mergedFunctionCallMessage is ToolCallMessage toolCall)
                 {
                     toolCall.Update(toolCallMessageUpdate);
                 }
@@ -104,13 +119,17 @@ public class FunctionCallMiddleware : IStreamingMiddleware
                     throw new InvalidOperationException("The first message is ToolCallMessage, but the update message is not ToolCallMessageUpdate");
                 }
             }
+            else if (message is ToolCallMessage toolCallMessage1)
+            {
+                mergedFunctionCallMessage = toolCallMessage1;
+            }
             else
             {
                 yield return message;
             }
         }
 
-        if (initMessage is ToolCallMessage toolCallMsg)
+        if (mergedFunctionCallMessage is ToolCallMessage toolCallMsg)
         {
             yield return await this.InvokeToolCallMessagesAfterInvokingAgentAsync(toolCallMsg, agent);
         }
@@ -159,7 +178,7 @@ public class FunctionCallMiddleware : IStreamingMiddleware
             }
         }
 
-        if (toolCallResult.Count() > 0)
+        if (toolCallResult.Count > 0)
         {
             var toolCallResultMessage = new ToolCallResultMessage(toolCallResult, from: agent.Name);
             return new ToolCallAggregateMessage(toolCallMsg, toolCallResultMessage, from: agent.Name);
@@ -168,5 +187,21 @@ public class FunctionCallMiddleware : IStreamingMiddleware
         {
             return toolCallMsg;
         }
+    }
+
+    private Func<string, Task<string>> AIToolInvokeWrapper(Func<IEnumerable<KeyValuePair<string, object?>>?, CancellationToken, Task<object?>> lambda)
+    {
+        return async (string args) =>
+        {
+            var arguments = JsonSerializer.Deserialize<Dictionary<string, object?>>(args);
+            var result = await lambda(arguments, CancellationToken.None);
+
+            return result switch
+            {
+                string s => s,
+                JsonElement e => e.ToString(),
+                _ => JsonSerializer.Serialize(result),
+            };
+        };
     }
 }

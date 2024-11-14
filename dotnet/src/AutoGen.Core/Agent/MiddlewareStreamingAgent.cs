@@ -1,4 +1,4 @@
-﻿// Copyright (c) Microsoft Corporation. All rights reserved.
+// Copyright (c) Microsoft Corporation. All rights reserved.
 // MiddlewareStreamingAgent.cs
 
 using System.Collections.Generic;
@@ -47,7 +47,7 @@ public class MiddlewareStreamingAgent : IMiddlewareStreamAgent
         return _agent.GenerateReplyAsync(messages, options, cancellationToken);
     }
 
-    public IAsyncEnumerable<IStreamingMessage> GenerateStreamingReplyAsync(IEnumerable<IMessage> messages, GenerateReplyOptions? options = null, CancellationToken cancellationToken = default)
+    public IAsyncEnumerable<IMessage> GenerateStreamingReplyAsync(IEnumerable<IMessage> messages, GenerateReplyOptions? options = null, CancellationToken cancellationToken = default)
     {
         return _agent.GenerateStreamingReplyAsync(messages, options, cancellationToken);
     }
@@ -58,7 +58,7 @@ public class MiddlewareStreamingAgent : IMiddlewareStreamAgent
         _agent = new DelegateStreamingAgent(middleware, _agent);
     }
 
-    private class DelegateStreamingAgent : IStreamingAgent
+    private sealed class DelegateStreamingAgent : IStreamingAgent
     {
         private IStreamingMiddleware? streamingMiddleware;
         private IStreamingAgent innerAgent;
@@ -71,7 +71,6 @@ public class MiddlewareStreamingAgent : IMiddlewareStreamAgent
             this.innerAgent = next;
         }
 
-
         public Task<IMessage> GenerateReplyAsync(IEnumerable<IMessage> messages, GenerateReplyOptions? options = null, CancellationToken cancellationToken = default)
         {
             if (this.streamingMiddleware is null)
@@ -83,7 +82,7 @@ public class MiddlewareStreamingAgent : IMiddlewareStreamAgent
             return this.streamingMiddleware.InvokeAsync(context, (IAgent)innerAgent, cancellationToken);
         }
 
-        public IAsyncEnumerable<IStreamingMessage> GenerateStreamingReplyAsync(IEnumerable<IMessage> messages, GenerateReplyOptions? options = null, CancellationToken cancellationToken = default)
+        public IAsyncEnumerable<IMessage> GenerateStreamingReplyAsync(IEnumerable<IMessage> messages, GenerateReplyOptions? options = null, CancellationToken cancellationToken = default)
         {
             if (streamingMiddleware is null)
             {

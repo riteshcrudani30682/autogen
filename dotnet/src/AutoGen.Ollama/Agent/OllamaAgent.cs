@@ -1,4 +1,4 @@
-﻿// Copyright (c) Microsoft Corporation. All rights reserved.
+// Copyright (c) Microsoft Corporation. All rights reserved.
 // OllamaAgent.cs
 
 using System;
@@ -53,7 +53,7 @@ public class OllamaAgent : IStreamingAgent
         }
     }
 
-    public async IAsyncEnumerable<IStreamingMessage> GenerateStreamingReplyAsync(
+    public async IAsyncEnumerable<IMessage> GenerateStreamingReplyAsync(
         IEnumerable<IMessage> messages,
         GenerateReplyOptions? options = null,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)

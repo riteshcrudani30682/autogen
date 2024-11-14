@@ -1,4 +1,4 @@
-﻿// Copyright (c) Microsoft Corporation. All rights reserved.
+// Copyright (c) Microsoft Corporation. All rights reserved.
 // GeminiMessageConnector.cs
 
 using System;
@@ -16,7 +16,7 @@ using Google.Protobuf.WellKnownTypes;
 using static Google.Cloud.AIPlatform.V1.Candidate.Types;
 using IMessage = AutoGen.Core.IMessage;
 
-namespace AutoGen.Gemini.Middleware;
+namespace AutoGen.Gemini;
 
 public class GeminiMessageConnector : IStreamingMiddleware
 {
@@ -39,7 +39,7 @@ public class GeminiMessageConnector : IStreamingMiddleware
 
     public string Name => nameof(GeminiMessageConnector);
 
-    public async IAsyncEnumerable<IStreamingMessage> InvokeAsync(MiddlewareContext context, IStreamingAgent agent, [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    public async IAsyncEnumerable<IMessage> InvokeAsync(MiddlewareContext context, IStreamingAgent agent, [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         var messages = ProcessMessage(context.Messages, agent);
 
@@ -266,7 +266,7 @@ public class GeminiMessageConnector : IStreamingMiddleware
         }
     }
 
-    private IEnumerable<IMessage> ProcessToolCallResultMessage(ToolCallResultMessage toolCallResultMessage, IAgent agent)
+    private IEnumerable<IMessage> ProcessToolCallResultMessage(ToolCallResultMessage toolCallResultMessage, IAgent _)
     {
         var functionCallResultParts = new List<Part>();
         foreach (var toolCallResult in toolCallResultMessage.ToolCalls)

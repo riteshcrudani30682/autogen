@@ -1,9 +1,9 @@
-﻿// Copyright (c) Microsoft Corporation. All rights reserved.
+// Copyright (c) Microsoft Corporation. All rights reserved.
 // GeminiAgentExtension.cs
 
 using AutoGen.Core;
 
-namespace AutoGen.Gemini.Middleware;
+namespace AutoGen.Gemini;
 
 public static class GeminiAgentExtension
 {
